@@ -1,0 +1,35 @@
+securityonion-rule-update (20120726-0ubuntu0securityonion6) precise; urgency=low
+
+  * copy Sourcefire SO rules 
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 13 Jun 2013 16:47:38 -0400
+
+securityonion-rule-update (20120726-0ubuntu0securityonion5) precise; urgency=low
+
+  * sensor should copy threshold.conf and bpf.conf from master 
+
+ -- Doug Burks <doug.burks@gmail.com>  Wed, 03 Oct 2012 16:57:18 -0400
+
+securityonion-rule-update (20120726-0ubuntu0securityonion4) precise; urgency=low
+
+  * make syntax consistent 
+
+ -- Doug Burks <doug.burks@gmail.com>  Wed, 03 Oct 2012 16:33:31 -0400
+
+securityonion-rule-update (20120726-0ubuntu0securityonion3) precise; urgency=low
+
+  * update location of sid-msg.map 
+
+ -- Doug Burks <doug.burks@gmail.com>  Tue, 02 Oct 2012 16:34:03 -0400
+
+securityonion-rule-update (20120726-0ubuntu0securityonion2) precise; urgency=low
+
+  * /etc/nsm/pulledpork/ 
+
+ -- Doug Burks <doug.burks@gmail.com>  Tue, 11 Sep 2012 09:58:51 -0400
+
+securityonion-rule-update (20120726-0ubuntu0securityonion1) precise; urgency=low
+
+  * Initial release
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 26 Jul 2012 19:16:36 -0400

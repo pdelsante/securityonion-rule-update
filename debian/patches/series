@@ -1,0 +1,6 @@
+cron
+etcnsmpulledpork
+\update-location-of-sid-msg.map
+make-syntax-consistent
+sensor-should-copy-threshold.conf-and-bpf.conf-from-master
+copy-Sourcefire-SO-rules

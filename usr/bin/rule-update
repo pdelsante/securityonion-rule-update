@@ -1,0 +1,105 @@
+#!/bin/bash
+#
+# Copyright (C) 2008-2013 Doug Burks and Security Onion <doug.burks@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+# Version:
+# 20130613
+#
+# Changelog:
+#
+# 20111001
+# Delete backups older than X days
+# Determine if running interactively or from cron
+#
+# 20120119
+# remove the -T option to allow so_rules to work
+# sensor needs to scp so_rules.rules from the master
+#
+# 20130613	
+# Michal Purzynski noticed that we need to copy 
+# /usr/local/lib/snort_dynamicrules/ from the server for
+# Sourcefire SO rules.
+
+# Variables
+
+# How many days of rule backups do you want to keep?
+# Default to 30, but this can be overriden in:
+# /etc/nsm/securityonion.conf
+DAYSTOKEEP_RULE_BACKUPS=30 
+source /etc/nsm/securityonion.conf
+
+# Rules directory
+RULES="/etc/nsm/rules"
+
+# Backup directory
+BACKUP=$RULES/backup
+
+# For determining if we are a slave sensor
+SSH_DIR="/root/.ssh"
+SSH_CONF="$SSH_DIR/securityonion_ssh.conf"
+
+# Backup downloaded.rules
+echo "Backing up current downloaded.rules file before it gets overwritten."
+cp $RULES/downloaded.rules $BACKUP/downloaded.rules.`date +%Y%m%d%H%M%S`
+
+# Clean up old downloaded.rules
+echo "Cleaning up downloaded.rules backup files older than $DAYSTOKEEP_RULE_BACKUPS days."
+find /etc/nsm/rules/backup/downloaded.rules.* -type f -mtime +$DAYSTOKEEP_RULE_BACKUPS -exec /bin/rm -f '{}' +
+
+# Get new rules
+if [ -f $SSH_CONF ]
+then
+	# We are a sensor.  Go get rules from master.
+	KEY="$SSH_DIR/securityonion"
+	source $SSH_CONF		
+	echo "Backing up current local.rules file before it gets overwritten."
+	cp $RULES/local.rules $BACKUP/local.rules.`date +%Y%m%d%H%M%S`
+	echo "Cleaning up local.rules backup files older than $DAYSTOKEEP_RULE_BACKUPS days."
+	find /etc/nsm/rules/backup/local.rules.* -type f -mtime +$DAYSTOKEEP_RULE_BACKUPS -exec /bin/rm -f '{}' +
+	# Determine if we are running interactively or from cron
+	tty -s
+	if [ $? -gt 0 ]
+	then
+		echo "Sleeping for 5 minutes to allow master time to download new rules."
+		sleep 5m 
+	fi
+	echo "Copying rules from $SERVERNAME."
+	scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:$RULES/downloaded.rules $RULES/downloaded.rules
+	scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:$RULES/local.rules $RULES/local.rules
+	scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:$RULES/so_rules.rules $RULES/so_rules.rules
+	scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:$RULES/sid-msg.map $RULES/sid-msg.map
+	scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:$RULES/threshold.conf $RULES/threshold.conf
+	scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:$RULES/bpf.conf $RULES/bpf.conf
+	scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:/usr/local/lib/snort_dynamicrules/* /usr/local/lib/snort_dynamicrules/
+else	
+	# We are the master.  Go get rules from Internet.
+	echo "Running PulledPork."
+	/usr/bin/pulledpork.pl -c /etc/nsm/pulledpork/pulledpork.conf
+fi
+
+# If Barnyard is running, restart it
+if ps aux |grep "barnyard[2]" >/dev/null
+then
+	echo "Restarting Barnyard2."
+	/usr/sbin/nsm_sensor_ps-restart --only-barnyard2
+fi
+
+# If Snort is running, restart it
+if ps aux |grep "snor[t]" >/dev/null
+then
+	echo "Restarting IDS Engine."
+	/usr/sbin/nsm_sensor_ps-restart --only-snort-alert
+fi
