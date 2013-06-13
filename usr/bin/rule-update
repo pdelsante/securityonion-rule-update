@@ -16,7 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # 
 # Version:
-# 20130613
+# 20130617
 #
 # Changelog:
 #
@@ -33,13 +33,20 @@
 # /usr/local/lib/snort_dynamicrules/ from the server for
 # Sourcefire SO rules.
 
+# 20130617
+# Chris White added the ability to do granular rule tuning
+# per sensor.
+
 # Variables
 
 # How many days of rule backups do you want to keep?
-# Default to 30, but this can be overriden in:
-# /etc/nsm/securityonion.conf
 DAYSTOKEEP_RULE_BACKUPS=30 
+
+# Do you want to local tuning of NIDS rules?
+# Default is false (rules are copied as-is from master server)
 LOCAL_NIDS_RULE_TUNING=false
+
+# These values can be overridden in securityonion.conf
 source /etc/nsm/securityonion.conf
 
 # Rules directory
@@ -61,8 +68,11 @@ echo "Cleaning up downloaded.rules backup files older than $DAYSTOKEEP_RULE_BACK
 find /etc/nsm/rules/backup/downloaded.rules.* -type f -mtime +$DAYSTOKEEP_RULE_BACKUPS -exec /bin/rm -f '{}' +
 
 # Get new rules
-if [ -f $SSH_CONF ]
-then
+if [ ! -f $SSH_CONF ]; then
+	# We are the master.  Go get rules from Internet.
+	echo "Running PulledPork."
+	/usr/bin/pulledpork.pl -c /etc/nsm/pulledpork/pulledpork.conf
+else
 	# We are a sensor.  Go get rules from master.
 	KEY="$SSH_DIR/securityonion"
 	source $SSH_CONF		
@@ -72,15 +82,13 @@ then
 	find /etc/nsm/rules/backup/local.rules.* -type f -mtime +$DAYSTOKEEP_RULE_BACKUPS -exec /bin/rm -f '{}' +
 	# Determine if we are running interactively or from cron
 	tty -s
-	if [ $? -gt 0 ]
-	then
+	if [ $? -gt 0 ]; then
 		echo "Sleeping for 5 minutes to allow master time to download new rules."
 		sleep 5m 
 	fi
 	
 	# Check if local rule tuning is enabled.
-	if $LOCAL_NIDS_RULE_TUNING
-	then
+	if $LOCAL_NIDS_RULE_TUNING; then
 		# Local rule tuning enabled, pull compressed rules and process slave side using pulledpork.
 		# Checks pulledpork conf for configured rule_url's and scp's them over.
 		echo "Copying compressed rules from $SERVERNAME."
@@ -96,26 +104,21 @@ then
 		# The master must be a super set of all rules.  Check to ensure master rule url count is not smaller than local
 		# which implies a rule_url was added to the local sensor and not the master.
 		# Also warn if local has fewer rule urls than master in case a url was added upstream and not subsequently downstream.
-		if [ "$MASTER_LENGTH" -lt "$LOCAL_LENGTH" ]
-		then
+		if [ "$MASTER_LENGTH" -lt "$LOCAL_LENGTH" ]; then
 			echo "Error: Master rule_url count is less than Local rule_url count. Master must have all rule_urls enabled in its pulledpork.conf."
-		elif [ "$MASTER_LENGTH" -gt "$LOCAL_LENGTH" ]
-		then
+		elif [ "$MASTER_LENGTH" -gt "$LOCAL_LENGTH" ]; then
 			echo "Warning: Local rule_url count is less than Master rule_url count. Ensure this is intended."
 		fi
 					
-		for COMPRESSED_RULE in $MASTER_RULES
-		do
+		for COMPRESSED_RULE in $MASTER_RULES; do
 			scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:/tmp/$COMPRESSED_RULE /tmp/
 		done
 
 		# Process rules local to sensor without starting a separate download.
 		echo "Running PulledPork."		
 		/usr/bin/pulledpork.pl -n -c /etc/nsm/pulledpork/pulledpork.conf
-		
 	else
 		#### Default ####
-		
 		# Local rule tuning disabled, pull processed rules from master
 		echo "Copying rules from $SERVERNAME."
 		scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:$RULES/downloaded.rules $RULES/downloaded.rules
@@ -125,25 +128,17 @@ then
 		scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:$RULES/threshold.conf $RULES/threshold.conf
 		scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:$RULES/bpf.conf $RULES/bpf.conf
 		scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:/usr/local/lib/snort_dynamicrules/* /usr/local/lib/snort_dynamicrules/
-	
 	fi
-
-else	
-	# We are the master.  Go get rules from Internet.
-	echo "Running PulledPork."
-	/usr/bin/pulledpork.pl -c /etc/nsm/pulledpork/pulledpork.conf
 fi
 
 # If Barnyard is running, restart it
-if ps aux |grep "barnyard[2]" >/dev/null
-then
+if ps aux |grep "barnyard[2]" >/dev/null; then
 	echo "Restarting Barnyard2."
 	/usr/sbin/nsm_sensor_ps-restart --only-barnyard2
 fi
 
 # If Snort is running, restart it
-if ps aux |grep "snor[t]" >/dev/null
-then
+if ps aux |grep "snor[t]" >/dev/null; then
 	echo "Restarting IDS Engine."
 	/usr/sbin/nsm_sensor_ps-restart --only-snort-alert
 fi
