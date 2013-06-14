@@ -76,14 +76,33 @@ then
 		echo "Sleeping for 5 minutes to allow master time to download new rules."
 		sleep 5m 
 	fi
-	echo "Copying rules from $SERVERNAME."
-	scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:$RULES/downloaded.rules $RULES/downloaded.rules
-	scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:$RULES/local.rules $RULES/local.rules
-	scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:$RULES/so_rules.rules $RULES/so_rules.rules
-	scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:$RULES/sid-msg.map $RULES/sid-msg.map
-	scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:$RULES/threshold.conf $RULES/threshold.conf
-	scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:$RULES/bpf.conf $RULES/bpf.conf
-	scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:/usr/local/lib/snort_dynamicrules/* /usr/local/lib/snort_dynamicrules/
+	
+	# Check if running universal rules or sensor specific (Chris White)
+	if $UNIVERSAL_RULES
+	then
+		echo "Copying rules from $SERVERNAME."
+		scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:$RULES/downloaded.rules $RULES/downloaded.rules
+		scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:$RULES/local.rules $RULES/local.rules
+		scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:$RULES/so_rules.rules $RULES/so_rules.rules
+		scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:$RULES/sid-msg.map $RULES/sid-msg.map
+		scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:$RULES/threshold.conf $RULES/threshold.conf
+		scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:$RULES/bpf.conf $RULES/bpf.conf
+		scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:/usr/local/lib/snort_dynamicrules/* /usr/local/lib/snort_dynamicrules/
+
+	else
+		# Non-Universal, pull compressed rules and process individually using pulledpork.
+		# Checks pulledpork conf for configured rule_url's and scp's them over.
+		echo "Copying compressed rules from $SERVERNAME."
+		for COMPRESSED_RULE in $(grep '^rule_url' /etc/nsm/pulledpork/pulledpork.conf | awk -F '|' '{print $2}' | sed 's/\./*\./g')
+		do
+			scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:/tmp/$COMPRESSED_RULE /tmp/
+		done
+
+		# Process rules local to sensor without starting a separate download.
+		echo "Running PulledPork."		
+		/usr/bin/pulledpork.pl -n -c /etc/nsm/pulledpork/pulledpork.conf
+	fi
+
 else	
 	# We are the master.  Go get rules from Internet.
 	echo "Running PulledPork."
