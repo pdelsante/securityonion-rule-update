@@ -39,6 +39,7 @@
 # Default to 30, but this can be overriden in:
 # /etc/nsm/securityonion.conf
 DAYSTOKEEP_RULE_BACKUPS=30 
+UNIVERSAL_RULES=true
 source /etc/nsm/securityonion.conf
 
 # Rules directory
