@@ -85,7 +85,26 @@ then
 		# Checks pulledpork conf for configured rule_url's and scp's them over.
 		echo "Copying compressed rules from $SERVERNAME."
 		
-		for COMPRESSED_RULE in $(grep '^rule_url' /etc/nsm/pulledpork/pulledpork.conf | awk -F '|' '{print $2}' | sed 's/\./*\./g')
+		MASTER_RULES=$(ssh -i "$KEY" $SSH_USERNAME@$SERVERNAME grep '^rule_url' /etc/nsm/pulledpork/pulledpork.conf | awk -F '|' '{print $2}' | sed 's/\./*\./g')
+		LOCAL_RULES=$(grep '^rule_url' /etc/nsm/pulledpork/pulledpork.conf | awk -F '|' '{print $2}' | sed 's/\./*\./g')
+
+		set -- $MASTER_RULES
+		MASTER_LENGTH=${#@}
+		set -- $LOCAL_RULES
+		LOCAL_LENGTH=${#@}		
+
+		# The master must be a super set of all rules.  Check to ensure master rule url count is not smaller than local
+		# which implies a rule_url was added to the local sensor and not the master.
+		# Also warn if local has fewer rule urls than master in case a url was added upstream and not subsequently downstream.
+		if [ "$MASTER_LENGTH" -lt "$LOCAL_LENGTH" ]
+		then
+			echo "Error: Master rule_url count is less than Local rule_url count. Master must have all rule_urls enabled in its pulledpork.conf."
+		elif [ "$MASTER_LENGTH" -gt "$LOCAL_LENGTH" ]
+		then
+			echo "Warning: Local rule_url count is less than Master rule_url count. Ensure this is intended."
+		fi
+					
+		for COMPRESSED_RULE in $MASTER_RULES
 		do
 			scp -i "$KEY" $SSH_USERNAME@$SERVERNAME:/tmp/$COMPRESSED_RULE /tmp/
 		done
