@@ -5,3 +5,4 @@ make-syntax-consistent
 sensor-should-copy-threshold.conf-and-bpf.conf-from-master
 copy-Sourcefire-SO-rules
 patch-from-Chris-White-to-allow-granular-rule-tuning-per-sensor
+Copy-OSSEC-local_rules.xml-from-master-to-slave

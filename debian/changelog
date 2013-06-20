@@ -1,3 +1,9 @@
+securityonion-rule-update (20120726-0ubuntu0securityonion8) precise; urgency=low
+
+  * Copy OSSEC local_rules.xml from master to slave 
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 20 Jun 2013 10:04:02 -0400
+
 securityonion-rule-update (20120726-0ubuntu0securityonion7) precise; urgency=low
 
   * Patch from Chris White to allow granular rule tuning per sensor
