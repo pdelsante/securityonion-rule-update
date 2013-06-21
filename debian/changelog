@@ -1,3 +1,9 @@
+securityonion-rule-update (20120726-0ubuntu0securityonion9) precise; urgency=low
+
+  * minor code cleanup
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 20 Jun 2013 20:45:34 -0400
+
 securityonion-rule-update (20120726-0ubuntu0securityonion8) precise; urgency=low
 
   * Copy OSSEC local_rules.xml from master to slave 
